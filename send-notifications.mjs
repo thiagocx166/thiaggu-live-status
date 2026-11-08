@@ -63,6 +63,25 @@ async function listCollection(token, collection, maxDocs = 500) {
   return docs
 }
 
+// Query estruturada: lê apenas documentos pendentes (economiza leituras da cota)
+async function listPending(token, maxDocs = 25) {
+  const response = await apiFetch(token, `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents:runQuery`, {
+    method: 'POST',
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'notificationQueue' }],
+        where: {
+          fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'pending' } },
+        },
+        limit: maxDocs,
+      },
+    }),
+  })
+  if (!response.ok) throw new Error(`Consultar notificationQueue: erro ${response.status}`)
+  const data = await response.json()
+  return data.map((item) => item.document).filter(Boolean)
+}
+
 const fieldOf = (fields, key, type) => fields?.[key]?.[type]
 
 async function sendToToken(token, fcmToken, title, body, tag, link) {
@@ -89,13 +108,10 @@ async function main() {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   const token = await getAccessToken(serviceAccount)
 
-  // 1. Itens pendentes na fila
-  const queueDocs = await listCollection(token, 'notificationQueue')
+  // 1. Itens pendentes na fila (query filtra por status, lendo só o necessário)
   const now = Date.now()
-  const pending = queueDocs
+  const pending = (await listPending(token))
     .filter((doc) => {
-      const status = fieldOf(doc.fields, 'status', 'stringValue')
-      if (status === 'sent') return false
       const createdAt = fieldOf(doc.fields, 'createdAt', 'timestampValue')
       const createdMs = createdAt ? Date.parse(createdAt) : NaN
       // Sem createdAt conhecido: processar mesmo assim
