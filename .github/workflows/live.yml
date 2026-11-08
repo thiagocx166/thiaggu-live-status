@@ -1,0 +1,38 @@
+name: Verificar live
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-monitor
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consultar YouTube quando necessário
+        id: consulta
+        continue-on-error: true
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: node check-live.mjs
+      - name: Salvar resultado compartilhado
+        run: |
+          if ! git diff --quiet -- status.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add status.json
+            git commit -m 'Atualizar status da live'
+            git push
+          fi
+      - name: Informar falha na consulta
+        if: steps.consulta.outcome == 'failure'
+        run: exit 1
