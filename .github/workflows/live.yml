@@ -18,6 +18,11 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
+      - name: Processar fila de notificações
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node send-notifications.mjs
       - name: Consultar YouTube quando necessário
         id: consulta
         continue-on-error: true
