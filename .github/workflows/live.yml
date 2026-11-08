@@ -21,7 +21,7 @@ jobs:
       - name: Processar fila de notificações
         continue-on-error: true
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.SA_PART1 }}${{ secrets.SA_PART2 }}${{ secrets.SA_PART3 }}
         run: node send-notifications.mjs
       - name: Consultar YouTube quando necessário
         id: consulta
